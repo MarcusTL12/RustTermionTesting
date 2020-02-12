@@ -4,46 +4,63 @@
 name = "libc"
 version = "0.2.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d515b1f41455adea1313a4a2ac8a8a477634fbae63cc6100e3aebb207ce61558"
 
 [[package]]
 name = "numtoa"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8f8bdf33df195859076e54ab11ee78a1b208382d3a26ec40d142ffc1ecc49ef"
 
 [[package]]
 name = "redox_syscall"
 version = "0.1.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2439c63f3f6139d1b57529d16bc3b8bb855230c8efcc5d3a896c8bea7c3b1e84"
 
 [[package]]
 name = "redox_termios"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e891cfe48e9100a70a3b6eb652fef28920c117d366339687bd5576160db0f76"
 dependencies = [
- "redox_syscall 0.1.56 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall",
 ]
 
 [[package]]
 name = "termion"
 version = "1.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c22cec9d8978d906be5ac94bceb5a010d885c626c4c8855721a4dbd20e3ac905"
 dependencies = [
- "libc 0.2.66 (registry+https://github.com/rust-lang/crates.io-index)",
- "numtoa 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_syscall 0.1.56 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_termios 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc",
+ "numtoa",
+ "redox_syscall",
+ "redox_termios",
+]
+
+[[package]]
+name = "termion_game_engine"
+version = "0.1.0"
+source = "git+https://github.com/MarcusTL12/termion_game_engine#97fb44d08e36be77649b5d14b69f22c189d4c65d"
+dependencies = [
+ "termion",
+]
+
+[[package]]
+name = "termion_game_engine_util"
+version = "0.1.0"
+source = "git+https://github.com/MarcusTL12/termion_game_engine_util#06a3b2189b0fb83d29b22a165c72f179251fb61d"
+dependencies = [
+ "termion",
+ "termion_game_engine",
 ]
 
 [[package]]
 name = "ticktacktoe_rust"
 version = "0.1.0"
 dependencies = [
- "termion 1.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "termion",
+ "termion_game_engine",
+ "termion_game_engine_util",
 ]
-
-[metadata]
-"checksum libc 0.2.66 (registry+https://github.com/rust-lang/crates.io-index)" = "d515b1f41455adea1313a4a2ac8a8a477634fbae63cc6100e3aebb207ce61558"
-"checksum numtoa 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b8f8bdf33df195859076e54ab11ee78a1b208382d3a26ec40d142ffc1ecc49ef"
-"checksum redox_syscall 0.1.56 (registry+https://github.com/rust-lang/crates.io-index)" = "2439c63f3f6139d1b57529d16bc3b8bb855230c8efcc5d3a896c8bea7c3b1e84"
-"checksum redox_termios 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7e891cfe48e9100a70a3b6eb652fef28920c117d366339687bd5576160db0f76"
-"checksum termion 1.5.5 (registry+https://github.com/rust-lang/crates.io-index)" = "c22cec9d8978d906be5ac94bceb5a010d885c626c4c8855721a4dbd20e3ac905"
