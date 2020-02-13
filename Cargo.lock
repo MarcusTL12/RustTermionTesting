@@ -42,7 +42,7 @@ dependencies = [
 [[package]]
 name = "termion_game_engine"
 version = "0.1.0"
-source = "git+https://github.com/MarcusTL12/termion_game_engine#97fb44d08e36be77649b5d14b69f22c189d4c65d"
+source = "git+https://github.com/MarcusTL12/termion_game_engine?branch=Dev#eadb5f70be6746ea9e3d4cd7591abd2b822eaffd"
 dependencies = [
  "termion",
 ]
@@ -50,7 +50,7 @@ dependencies = [
 [[package]]
 name = "termion_game_engine_util"
 version = "0.1.0"
-source = "git+https://github.com/MarcusTL12/termion_game_engine_util#06a3b2189b0fb83d29b22a165c72f179251fb61d"
+source = "git+https://github.com/MarcusTL12/termion_game_engine_util?branch=Dev#8823d099e2cfa269886c6ff0d38c44f213130874"
 dependencies = [
  "termion",
  "termion_game_engine",
