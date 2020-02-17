@@ -14,16 +14,21 @@ struct Board {
     turn: bool,
     pos: (u16, u16),
     n: usize,
+    cols: [Vec<u8>; 2],
 }
 
 impl Board {
-    fn new(pos: (u16, u16), n: usize) -> Self {
-        Board {
+    fn new(pos: (u16, u16), n: usize) -> Result<Self, Box<dyn Error>> {
+        Ok(Board {
             board: (0..n).map(|_| (0..n).map(|_| None).collect()).collect(),
             turn: false,
             pos: pos,
             n: n,
-        }
+            cols: [
+                termion_game_engine::col2fg_str(color::Red)?,
+                termion_game_engine::col2fg_str(color::Green)?,
+            ],
+        })
     }
     //
     fn getcell(&self, mpos: (u16, u16)) -> Option<(u16, u16)> {
@@ -41,6 +46,41 @@ impl Board {
             Some((x as u16 / 4, y as u16 / 2))
         }
     }
+    //
+    fn winner(&self) -> Option<bool> {
+        // let temp = self.board.iter().map(|row| {
+        //     let counter = row.iter().fold(0, |c, &v| {
+        //         if let Some(v) = v {
+        //             c + (v as i32 * 2 - 1)
+        //         } else {
+        //             c
+        //         }
+        //     });
+        //     if counter == self.n as i32 {
+        //         Some(true)
+        //     } else if -counter == self.n as i32 {
+        //         Some(false)
+        //     } else {
+        //         None
+        //     }
+        // });
+        //
+        let temp = (0..self.n)
+            .map(|y| {
+                (0..self.n).map(move |x| (x, y)).fold(0, |mut c, (x, y)| {
+                    if let Some(v) = self.board[y][x] {
+                        c += v as i32;
+                    }
+                    c
+                })
+            })
+            .find(|v| v.abs() as usize == self.n);
+        if let Some(t) = temp {
+            Some(t < 0)
+        } else {
+            None
+        }
+    }
 }
 
 impl GameObject for Board {
@@ -48,9 +88,11 @@ impl GameObject for Board {
         match e {
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
                 if let Some(cell) = self.getcell((*x, *y)) {
-                    self.board[cell.1 as usize][cell.0 as usize] =
-                        Some(self.turn);
-                    self.turn = !self.turn;
+                    if self.board[cell.1 as usize][cell.0 as usize].is_none() {
+                        self.board[cell.1 as usize][cell.0 as usize] =
+                            Some(self.turn);
+                        self.turn = !self.turn;
+                    }
                 }
             }
             _ => (),
@@ -58,13 +100,16 @@ impl GameObject for Board {
     }
     //
     fn render(&mut self, buff: &mut Vec<u8>) -> Result<(), Box<dyn Error>> {
+        buff.extend(self.cols[self.turn as usize].iter());
         write!(
             buff,
-            "{}{}Turn: {}{}",
-            color::Fg(color::Reset),
+            "{}{}Turn: {}{}{}{}",
             cursor::Goto(self.pos.0, self.pos.1 - 1),
+            style::Bold,
             if self.turn { 'O' } else { 'X' },
-            cursor::Goto(self.pos.0, self.pos.1)
+            cursor::Goto(self.pos.0, self.pos.1),
+            color::Fg(color::Reset),
+            style::Reset,
         )?;
         //
         for y in 0..self.n {
@@ -106,14 +151,18 @@ impl GameObject for Board {
                     "{}",
                     box_mix([None, None, Some(left), Some(left)])
                 )?;
+                if let Some(v) = self.board[y][x] {
+                    buff.extend(self.cols[v as usize].iter());
+                }
                 write!(
                     buff,
-                    " {} ",
+                    " {}{} ",
                     if let Some(v) = self.board[y][x] {
                         ['X', 'O'][v as usize]
                     } else {
                         ' '
-                    }
+                    },
+                    color::Fg(color::Reset)
                 )?;
             }
             write!(buff, "{}", box_mix([None, None, Some(true), Some(true)]))?;
@@ -162,7 +211,7 @@ impl TicTacToe {
                 String::from("<- Exit"),
                 color::Red,
             )?,
-            board: Board::new((1, 5), 3),
+            board: Board::new((1, 5), 3)?,
             temp: 0,
         })
     }
@@ -183,6 +232,10 @@ impl TerminalGameStatic for TicTacToe {
         }
         //
         if self.exitbutton.released(MouseButton::Left) {
+            self.running = false;
+        }
+        //
+        if let Some(_) = self.board.winner() {
             self.running = false;
         }
         //
