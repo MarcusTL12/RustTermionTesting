@@ -1,4 +1,4 @@
-use std::{error::Error, io::Write};
+use std::{error::Error, io::Write, iter::once};
 
 use termion::{
     clear, color, cursor,
@@ -15,6 +15,7 @@ struct Board {
     pos: (u16, u16),
     n: usize,
     cols: [Vec<u8>; 2],
+    won: Option<bool>,
 }
 
 impl Board {
@@ -28,6 +29,7 @@ impl Board {
                 termion_game_engine::col2fg_str(color::Red)?,
                 termion_game_engine::col2fg_str(color::Green)?,
             ],
+            won: None,
         })
     }
     //
@@ -47,33 +49,33 @@ impl Board {
         }
     }
     //
-    fn winner(&self) -> Option<bool> {
-        // let temp = self.board.iter().map(|row| {
-        //     let counter = row.iter().fold(0, |c, &v| {
-        //         if let Some(v) = v {
-        //             c + (v as i32 * 2 - 1)
-        //         } else {
-        //             c
-        //         }
-        //     });
-        //     if counter == self.n as i32 {
-        //         Some(true)
-        //     } else if -counter == self.n as i32 {
-        //         Some(false)
-        //     } else {
-        //         None
-        //     }
-        // });
-        //
+    fn winner(&mut self) -> Option<bool> {
         let temp = (0..self.n)
             .map(|y| {
-                (0..self.n).map(move |x| (x, y)).fold(0, |mut c, (x, y)| {
-                    if let Some(v) = self.board[y][x] {
-                        c += v as i32;
-                    }
-                    c
-                })
+                (0..self.n).map(move |x| (x, y)).fold(
+                    (0, 0),
+                    |(mut a, mut b), (x, y)| {
+                        if let Some(v) = self.board[y][x] {
+                            a += v as i32 * 2 - 1;
+                        }
+                        if let Some(v) = self.board[x][y] {
+                            b += v as i32 * 2 - 1;
+                        }
+                        (a, b)
+                    },
+                )
             })
+            .chain(once((0..self.n).fold((0, 0), |(mut a, mut b), i| {
+                if let Some(v) = self.board[i][i] {
+                    a += v as i32 * 2 - 1;
+                }
+                if let Some(v) = self.board[i][self.n - i - 1] {
+                    b += v as i32 * 2 - 1;
+                }
+                (a, b)
+            })))
+            .map(|(a, b)| once(a).chain(once(b)))
+            .flatten()
             .find(|v| v.abs() as usize == self.n);
         if let Some(t) = temp {
             Some(t < 0)
@@ -88,10 +90,14 @@ impl GameObject for Board {
         match e {
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
                 if let Some(cell) = self.getcell((*x, *y)) {
-                    if self.board[cell.1 as usize][cell.0 as usize].is_none() {
+                    if self.won.is_none()
+                        && self.board[cell.1 as usize][cell.0 as usize]
+                            .is_none()
+                    {
                         self.board[cell.1 as usize][cell.0 as usize] =
                             Some(self.turn);
                         self.turn = !self.turn;
+                        self.won = self.winner();
                     }
                 }
             }
@@ -100,17 +106,36 @@ impl GameObject for Board {
     }
     //
     fn render(&mut self, buff: &mut Vec<u8>) -> Result<(), Box<dyn Error>> {
-        buff.extend(self.cols[self.turn as usize].iter());
-        write!(
-            buff,
-            "{}{}Turn: {}{}{}{}",
-            cursor::Goto(self.pos.0, self.pos.1 - 1),
-            style::Bold,
-            if self.turn { 'O' } else { 'X' },
-            cursor::Goto(self.pos.0, self.pos.1),
-            color::Fg(color::Reset),
-            style::Reset,
-        )?;
+        if let Some(winner) = self.won {
+            buff.extend(self.cols[!winner as usize].iter());
+            write!(
+                buff,
+                "{}{}{}{}{} won!{}",
+                cursor::Goto(self.pos.0, self.pos.1 - 1),
+                style::Bold,
+                if winner { 'X' } else { 'O' },
+                color::Fg(color::Reset),
+                style::Reset,
+                cursor::Goto(self.pos.0, self.pos.1),
+            )?;
+        } else {
+            write!(
+                buff,
+                "{}{}Turn: ",
+                color::Fg(color::Reset),
+                cursor::Goto(self.pos.0, self.pos.1 - 1)
+            )?;
+            buff.extend(self.cols[self.turn as usize].iter());
+            write!(
+                buff,
+                "{}{}{}{}{}",
+                style::Bold,
+                if self.turn { 'O' } else { 'X' },
+                cursor::Goto(self.pos.0, self.pos.1),
+                color::Fg(color::Reset),
+                style::Reset,
+            )?;
+        }
         //
         for y in 0..self.n {
             let top = y == 0;
@@ -156,12 +181,14 @@ impl GameObject for Board {
                 }
                 write!(
                     buff,
-                    " {}{} ",
+                    " {}{}{}{} ",
+                    style::Bold,
                     if let Some(v) = self.board[y][x] {
                         ['X', 'O'][v as usize]
                     } else {
                         ' '
                     },
+                    style::Reset,
                     color::Fg(color::Reset)
                 )?;
             }
@@ -232,10 +259,6 @@ impl TerminalGameStatic for TicTacToe {
         }
         //
         if self.exitbutton.released(MouseButton::Left) {
-            self.running = false;
-        }
-        //
-        if let Some(_) = self.board.winner() {
             self.running = false;
         }
         //
