@@ -16,6 +16,7 @@ struct Board {
     n: usize,
     cols: [Vec<u8>; 2],
     won: Option<bool>,
+    turns: usize,
 }
 
 impl Board {
@@ -30,7 +31,19 @@ impl Board {
                 termion_game_engine::col2fg_str(color::Green)?,
             ],
             won: None,
+            turns: 0,
         })
+    }
+    //
+    fn reset(&mut self) {
+        for y in 0..self.n {
+            for x in 0..self.n {
+                self.board[y][x] = None;
+            }
+        }
+        self.turn = false;
+        self.won = None;
+        self.turns = 0;
     }
     //
     fn getcell(&self, mpos: (u16, u16)) -> Option<(u16, u16)> {
@@ -97,6 +110,7 @@ impl GameObject for Board {
                         self.board[cell.1 as usize][cell.0 as usize] =
                             Some(self.turn);
                         self.turn = !self.turn;
+                        self.turns += 1;
                         self.won = self.winner();
                     }
                 }
@@ -106,17 +120,25 @@ impl GameObject for Board {
     }
     //
     fn render(&mut self, buff: &mut Vec<u8>) -> Result<(), Box<dyn Error>> {
-        if let Some(winner) = self.won {
+        if self.turns == self.n * self.n {
+            write!(
+                buff,
+                "{}{}{}TIE!{}",
+                cursor::Goto(self.pos.0, self.pos.1 - 1),
+                color::Fg(color::Reset),
+                style::Bold,
+                style::Reset
+            )?;
+        } else if let Some(winner) = self.won {
             buff.extend(self.cols[!winner as usize].iter());
             write!(
                 buff,
-                "{}{}{}{}{} won!{}",
+                "{}{}{}{}{} won!",
                 cursor::Goto(self.pos.0, self.pos.1 - 1),
                 style::Bold,
                 if winner { 'X' } else { 'O' },
                 color::Fg(color::Reset),
                 style::Reset,
-                cursor::Goto(self.pos.0, self.pos.1),
             )?;
         } else {
             write!(
@@ -128,14 +150,14 @@ impl GameObject for Board {
             buff.extend(self.cols[self.turn as usize].iter());
             write!(
                 buff,
-                "{}{}{}{}{}",
+                "{}{}{}{}",
                 style::Bold,
                 if self.turn { 'O' } else { 'X' },
-                cursor::Goto(self.pos.0, self.pos.1),
                 color::Fg(color::Reset),
                 style::Reset,
             )?;
         }
+        write!(buff, "{}", cursor::Goto(self.pos.0, self.pos.1))?;
         //
         for y in 0..self.n {
             let top = y == 0;
@@ -222,9 +244,10 @@ struct TicTacToe {
     dbuff: Vec<u8>,
     running: bool,
     exitbutton: Button,
+    resetbutton: Button,
     exitlabel: TextLabel,
+    resetlabel: TextLabel,
     board: Board,
-    temp: usize,
 }
 
 impl TicTacToe {
@@ -233,13 +256,18 @@ impl TicTacToe {
             dbuff: Vec::new(),
             running: true,
             exitbutton: Button::new((1, 1), (4, 2), color::Red)?,
+            resetbutton: Button::new((15, 1), (4, 2), color::Green)?,
             exitlabel: TextLabel::new(
-                (5, 2),
-                String::from("<- Exit"),
+                (6, 2),
+                String::from("<-  Exit"),
                 color::Red,
             )?,
+            resetlabel: TextLabel::new(
+                (6, 1),
+                String::from("Reset ->"),
+                color::Green,
+            )?,
             board: Board::new((1, 5), 3)?,
-            temp: 0,
         })
     }
 }
@@ -251,15 +279,20 @@ impl TerminalGameStatic for TicTacToe {
         buff: &mut Vec<u8>,
     ) -> Result<(), Box<dyn Error>> {
         self.exitbutton.input(&e);
+        self.resetbutton.input(&e);
         self.board.input(&e);
         //
         match e {
-            Event::Key(Key::Char(' ')) => self.temp += 1,
+            Event::Key(Key::Esc) => self.running = false,
             _ => (),
         }
         //
         if self.exitbutton.released(MouseButton::Left) {
             self.running = false;
+        }
+        //
+        if self.resetbutton.released(MouseButton::Left) {
+            self.board.reset();
         }
         //
         write!(
@@ -273,7 +306,9 @@ impl TerminalGameStatic for TicTacToe {
         .unwrap();
         //
         self.exitbutton.render(buff)?;
+        self.resetbutton.render(buff)?;
         self.exitlabel.render(buff)?;
+        self.resetlabel.render(buff)?;
         self.board.render(buff)?;
         //
         if let Ok((_, h)) = termion::terminal_size() {
