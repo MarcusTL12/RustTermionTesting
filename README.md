@@ -1,2 +1,1 @@
-# RustTermionTesting
-Just testing the termion crate
+# ticktacktoe_rust
